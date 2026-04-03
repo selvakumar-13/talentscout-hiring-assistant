@@ -1,39 +1,55 @@
 # 🎯 TalentScout Hiring Assistant
 
-An AI-powered chatbot that conducts initial candidate screening for technology roles — built with **Streamlit**.
+> An AI-powered conversational chatbot that conducts initial candidate screening for technology roles — built with **Streamlit** and **Groq (Llama 3.3 70B)**.
 
 ---
 
 ## 📌 Project Overview
 
-TalentScout Hiring Assistant is a conversational AI that:
+TalentScout Hiring Assistant is an intelligent hiring chatbot designed for **TalentScout**, a fictional recruitment agency specialising in technology placements. The chatbot automates the initial screening process by:
 
-- Greets candidates and explains the screening process
-- Collects key personal & professional information (name, email, phone, experience, desired role, location, tech stack)
-- Generates **3–5 tailored technical questions** per declared technology
-- Maintains coherent multi-turn conversation context
-- Ends gracefully on exit keywords or after wrap-up
-- Displays a real-time **Candidate Profile** card as info is collected
-- Shows a **stage progress tracker** (Greeting → Personal Info → Tech Stack → Tech Questions → Wrap-up)
+- Greeting candidates and explaining the screening process
+- Collecting all essential personal and professional details
+- Generating **3–5 tailored technical questions** per declared technology
+- Performing **real-time sentiment analysis** to adapt its tone to the candidate's emotional state
+- Saving candidate data securely to a local JSON file after each session
+- Displaying a live **Candidate Profile card** as information is collected
+- Tracking progress through a **5-stage visual tracker**
+- Ending gracefully on exit keywords or after wrap-up
 
 ---
 
 ## 🗂️ Repository Structure
 
 ```
-talentscout/
-├── app.py              # Main Streamlit application
+talentscout-hiring-assistant/
+├── app.py              # Main Streamlit application (all logic in one file)
 ├── requirements.txt    # Python dependencies
-└── README.md           # This file
+├── README.md           # This file
+├── .gitignore          # Excludes candidates.json, __pycache__, .env
+└── candidates.json     # Auto-generated at runtime — NOT committed to Git
 ```
+
+---
+
+## 🖥️ Demo
+
+> 📹 **[Watch the Loom Demo](#)** ← replace with your Loom link
+
+**Screenshots:**
+
+| Greeting Stage | Tech Questions Stage | Wrap-up |
+|---|---|---|
+| Progress tracker at Step 1 | Sentiment badge + technical Q&A | 🎉 End card + data saved |
 
 ---
 
 ## ⚙️ Installation & Setup
 
 ### Prerequisites
-- Python 3.9+
-- An [Anthropic API key](https://console.anthropic.com/)
+
+- Python 3.9 or higher
+- A free [Groq API key](https://console.groq.com) (no credit card required)
 
 ### Steps
 
@@ -42,32 +58,36 @@ talentscout/
 git clone https://github.com/YOUR_USERNAME/talentscout-hiring-assistant.git
 cd talentscout-hiring-assistant
 
-# 2. Create a virtual environment (recommended)
+# 2. Create and activate a virtual environment (recommended)
 python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+
+# On Mac/Linux:
+source venv/bin/activate
+
+# On Windows:
+venv\Scripts\activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
 
-# 4. Set your Anthropic API key
-export ANTHROPIC_API_KEY="sk-ant-..."   # Windows: set ANTHROPIC_API_KEY=sk-ant-...
-
-# 5. Run the app
+# 4. Run the app
+$env:GROQ_API_KEY="YOUR_GROQ_API_KEY"
 streamlit run app.py
 ```
 
-The app will open at **http://localhost:8501** in your browser.
+The app opens automatically at **http://localhost:8501**
 
 ---
 
 ## 🚀 Usage Guide
 
-1. The chatbot **automatically greets** you when the page loads — no action needed.
-2. **Respond naturally** in the text box at the bottom and press **Send** or hit Enter.
-3. Watch the **progress pills** at the top update as you move through stages.
-4. Your **Candidate Profile card** fills in automatically as information is collected.
-5. Type `bye`, `exit`, `quit`, `done`, or `end` at any time to gracefully conclude the session.
-6. After wrap-up, click **Start a New Session** to reset.
+1. The chatbot **automatically greets** you on page load — no button click needed.
+2. **Respond naturally** in the text box at the bottom and press **Send** or hit **Enter**.
+3. Watch the **5-stage progress tracker** advance as you move through the conversation.
+4. Your **Candidate Profile card** fills in live as Alex collects your information.
+5. The **sentiment badge** shows your detected emotional tone (Confident, Nervous, Confused, Enthusiastic, Neutral).
+6. Type `bye`, `exit`, `quit`, `done`, `end`, or `stop` at any time to end the session gracefully.
+7. After wrap-up, your data is saved and a **Start a New Session** button appears.
 
 ---
 
@@ -77,32 +97,40 @@ The app will open at **http://localhost:8501** in your browser.
 |------|--------|
 | **Language** | Python 3.9+ |
 | **Frontend** | Streamlit 1.35+ |
-| **LLM** | Anthropic Claude claude-sonnet-4-20250514 |
-| **SDK** | `anthropic` Python SDK |
+| **LLM** | Groq — `llama-3.3-70b-versatile` |
 | **Styling** | Custom CSS with Google Fonts (DM Serif Display, DM Mono, DM Sans) |
-| **State** | Streamlit `session_state` (in-memory, no persistence) |
+| **State Management** | Streamlit `session_state` (in-memory per session) |
+| **Data Storage** | Local `candidates.json` (appended after each session) |
+| **Sentiment Analysis** | LLM-driven — 5 categories: neutral, confident, nervous, enthusiastic, confused |
 
 ### Architecture
 
 ```
-User Input
-    │
-    ▼
-Streamlit UI (app.py)
-    │  ┌─────────────────────────────┐
-    ├─►│  End-keyword detector        │──► Farewell + end screen
-    │  └─────────────────────────────┘
-    │
-    ▼
-Anthropic Messages API
-    │   System prompt (SYSTEM_PROMPT constant)
-    │   Full conversation history (messages list)
-    │
-    ▼
-Claude claude-sonnet-4-20250514 response
-    │
-    ├─► Hidden <!--META:{...}--> block parsed for stage + collected fields
-    └─► Cleaned text rendered as chat bubble
+User Input (st.form)
+        │
+        ▼
+ End-keyword check ──────────────────► Farewell message + save data + end screen
+        │
+        ▼
+  call_llm(messages)
+        │   ┌─────────────────────────────────────────────┐
+        │   │  System prompt with:                         │
+        │   │  • 4-stage flow enforcement                  │
+        │   │  • Sentiment awareness instructions          │
+        │   │  • Hidden <!--META:{...}--> output contract  │
+        │   └─────────────────────────────────────────────┘
+        │
+        ▼
+ Groq API → Llama 3.3 70B response
+        │
+        ├─► extract_meta()      → parse stage + sentiment + collected fields
+        ├─► update_state()      → update session_state (stage, collected, sentiment)
+        ├─► infer_stage()       → Python-side safety net (never rely solely on LLM)
+        ├─► clean_display()     → strip <!--META:--> before rendering
+        └─► render chat bubble  → display to user
+                │
+                ▼ (on wrap_up)
+        save_candidate()  →  append to candidates.json
 ```
 
 ---
@@ -111,30 +139,45 @@ Claude claude-sonnet-4-20250514 response
 
 ### System Prompt Strategy
 
-The system prompt (`SYSTEM_PROMPT` in `app.py`) uses three key techniques:
+The system prompt uses four key techniques:
 
-1. **Staged flow enforcement** — The prompt explicitly lists four ordered stages (Greeting → Personal Info → Tech Stack → Tech Questions → Wrap-up) and instructs Claude to follow them strictly, preventing the model from jumping ahead or going off-topic.
+**1. Staged flow enforcement**
+The prompt explicitly defines four ordered stages and instructs the LLM to follow them strictly, preventing topic drift or jumping ahead.
 
-2. **Metadata injection** — Every reply must end with a hidden HTML comment containing a JSON object: `<!--META:{"stage":"...","collected":{...}}-->`. This lets the Python layer track progress and populate the profile card without any extra API calls.
+**2. Hidden metadata contract**
+Every LLM reply must end with a hidden HTML comment:
+```
+<!--META:{"stage":"personal_info","sentiment":"confident","collected":{"name":"Selva","email":"","...}}-->
+```
+This lets Python track progress and update the UI without extra API calls. The comment is stripped before display using `clean_display()`.
 
-3. **Guard rails** — Explicit rules prevent topic deviation, sensitive data leakage, and reward encouragement without revealing correct answers.
+**3. Python-side safety net (`infer_stage`)**
+Since LLMs occasionally skip the metadata block, a pure-Python function independently infers the stage from what has been collected. The stage only ever advances — never goes backwards.
+
+**4. Sentiment awareness**
+The LLM is instructed to detect and report the candidate's emotional tone each turn, and to adapt its response style accordingly (more reassuring for nervous candidates, energetic for enthusiastic ones).
 
 ### Technical Question Generation
 
-When the tech stack is declared, the prompt instructs Claude to:
-- Reflect the stack back to confirm accuracy
-- Generate questions that are specific and progressively challenging
+When the tech stack is declared, the prompt instructs the LLM to:
+- Summarise the declared stack back to confirm accuracy
+- Generate 3–5 specific, progressively challenging questions per technology
 - Ask one question at a time, waiting for each answer
-- Acknowledge answers warmly without grading them
+- Acknowledge answers warmly without grading or revealing correct answers
 
 ---
 
-## 🔒 Data Privacy
+## 🔒 Data Privacy & Security
 
-- **No persistence** — all data lives in Streamlit's `session_state` and is lost when the browser tab closes or the session resets.
-- **No logging** — candidate data is not written to disk or sent anywhere beyond the Anthropic API call.
-- **API key** — loaded from environment variables only; never hard-coded.
-- For production use, consider: encrypted storage, GDPR-compliant data handling, and access controls.
+| Concern | Approach |
+|---------|----------|
+| **Session data** | Stored in Streamlit `session_state` — cleared when tab closes or session resets |
+| **Persistent storage** | `candidates.json` written locally only — never sent to third parties |
+| **API key** | Hardcoded in `call_llm()` for local use — in production, use environment variables or a secrets manager |
+| **Sensitive fields** | Email and phone collected only for recruitment purposes — not logged elsewhere |
+| **GDPR note** | For production deployment, implement encrypted storage, data retention policies, and a consent mechanism |
+
+> ⚠️ `candidates.json` is excluded from Git via `.gitignore` to prevent accidental exposure of candidate data.
 
 ---
 
@@ -142,23 +185,60 @@ When the tech stack is declared, the prompt instructs Claude to:
 
 | Challenge | Solution |
 |-----------|----------|
-| Tracking conversation stage without extra API calls | Embedded hidden JSON metadata in every LLM response |
-| Profile card populating incrementally | Merge strategy: only overwrite collected fields if the new value is non-empty |
-| Preventing topic drift | Strict system prompt rules + redirect instruction |
-| Auto-starting conversation | Seeded first turn in `session_state` initialisation block |
-| Clean display vs raw API content | `clean_display()` strips the `<!--META:...-->` comment before rendering |
+| LLM skipping metadata block | Added Python-side `infer_stage()` as a reliable fallback |
+| Double submission on Enter key | Replaced `st.text_input + st.button` with `st.form + st.form_submit_button` |
+| Stage going backwards on rerun | `infer_stage()` only advances stage — never decrements |
+| Groq free tier rate limits | Added clear error guidance; architecture supports easy model swapping |
+| Sentiment not adapting tone | Added explicit sentiment awareness section to system prompt |
+| Candidate data not persisting | `save_candidate()` appends to `candidates.json` on session end |
+| API key quota exhaustion | Migrated from Anthropic → Google Gemini → Groq (free, no card needed) |
 
 ---
 
-## 🌟 Optional Enhancements (Implemented)
+## 🌟 Features Implemented
 
-- **Real-time profile card** — fills in as the candidate provides details
-- **Stage progress tracker** — visual pills showing current position in the flow
-- **Polished dark UI** — custom CSS with distinctive typography and colour palette
-- **Session reset** — "Start a New Session" button on the end screen
+### Core Requirements ✅
+- [x] Streamlit UI with clean, intuitive design
+- [x] Greeting with purpose explanation
+- [x] Full candidate info collection (7 fields)
+- [x] Tech stack declaration
+- [x] 3–5 technical questions per technology, asked one at a time
+- [x] Multi-turn context handling (full message history sent each call)
+- [x] Fallback/redirect for off-topic input
+- [x] Exit keyword detection with graceful farewell
+- [x] Candidate data saved to `candidates.json`
+
+### Bonus Enhancements ✅
+- [x] **Sentiment analysis** — live mood badge (Confident 💪 / Nervous 😰 / Confused 😕 / Enthusiastic 🚀 / Neutral 😐)
+- [x] **Sentiment-adaptive responses** — Alex adjusts tone based on detected emotion
+- [x] **Sentiment history** — dominant mood saved alongside candidate profile
+- [x] **Real-time profile card** — fills in as candidate provides details
+- [x] **5-stage visual progress tracker** with done/active/pending states
+- [x] **Polished dark UI** — custom CSS, distinctive typography, animated chat bubbles
+- [x] **Session reset** — clean restart without refreshing the page
+
+---
+
+## 📦 Dependencies
+
+```
+streamlit>=1.35.0
+groq>=0.9.0
+```
+
+Install with:
+```bash
+pip install -r requirements.txt
+```
 
 ---
 
 ## 📄 License
 
 MIT — free to use, modify, and distribute.
+
+---
+
+## 👤 Author
+
+Built as part of the TalentScout AI/ML Internship Assignment.
